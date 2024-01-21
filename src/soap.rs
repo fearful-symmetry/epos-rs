@@ -1,3 +1,4 @@
+use log::{trace, debug};
 use reqwest::header::HeaderMap;
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -40,22 +41,7 @@ pub struct EposPrint {
     #[serde(rename = "$value")]
     pub body: EnumBody
 }
-
-// #[derive(Deserialize, Serialize, Debug)]
-// pub struct EposBody {
-//     #[serde(rename = "$value")]
-//     pub list: Vec<NormalItem>,
-// }
-
-// #[derive(Deserialize, Serialize, Debug)]
-// pub struct InnerBody{
-//     #[serde(rename = "$value",  skip_serializing_if = "Option::is_none")]
-//     pub page: Option<PageWrapper>,
-//     #[serde(rename = "$value",  skip_serializing_if = "Option::is_none")]
-//     pub nonpage: Option<Vec<NormalItem>>
-
-// }
-
+    
 #[derive(Deserialize, Serialize, Debug)]
 pub enum EnumBody {
     #[serde(rename = "epos-print")]
@@ -88,7 +74,7 @@ pub async fn send(body: EnumBody, devid: &str, timeout: i32, endpoint: &Url) -> 
     let output = quick_xml::se::to_string(&full_request)?;
     // we do this because we store the `self.build` as a string,  and the serialize option will escape the inner body
     let fixed = quick_xml::escape::unescape(&output).unwrap();
-    println!("Got: {}", fixed);
+    trace!("Got complete XML: {}", fixed);
 
 
     let client = reqwest::Client::new();
@@ -100,6 +86,7 @@ pub async fn send(body: EnumBody, devid: &str, timeout: i32, endpoint: &Url) -> 
 
     let resp = builder.send().await?.text().await?;
     let formatted_resp: SoapRespWrapper = quick_xml::de::from_str(&resp)?;
+    debug!("Got raw response: {:?}", formatted_resp);
     if !formatted_resp.body.response.success {
         return Err(EPOSError::ResponseError { status: formatted_resp.body.response })
     }

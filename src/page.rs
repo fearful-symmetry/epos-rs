@@ -1,3 +1,4 @@
+//! Types that are exclusive to page mode.
 use quick_xml::DeError;
 use reqwest::IntoUrl;
 use serde::{Deserialize, Serialize};
@@ -80,29 +81,5 @@ impl PageBuilder {
         soap::send(final_body, &self.dev_id, self.timeout, &self.endpoint).await?;
 
         Ok(())
-    }
-}
-
-
-#[cfg(test)]
-mod tests {
-    use url::Url;
-
-    use crate::{universal, formatters::Align, soap::ENDPOINT, page::new};
-
-    use super::{PageBuilder, Rectangle, Area};
-
-
-    #[tokio::test]
-    async fn print_test() {
-
-        let mut handler = new(1000, "local_printer".to_string(), "http://192.168.1.194").unwrap();
-
-        handler.add(Area{ x: 0, y: 0, width: 500, height: 500 }).unwrap();
-        handler.add(universal::Text{text: String::from("\nI HATE XML\n\n"), align: Some(Align::Center), ..Default::default()}).unwrap();
-        handler.add(Rectangle{ x1: 0, y1: 0, x2: 200, y2: 100, style: None }).unwrap();
-        handler.add(universal::Feed { line: Some(200), ..Default::default()}).unwrap();
-
-        handler.print().await.unwrap();
     }
 }

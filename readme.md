@@ -1,27 +1,40 @@
 # epos-rs
 
-`epos-rs` is a rust driver for Epson receipt printers that implement the [EPOS Print](https://files.support.epson.com/pdf/pos/bulk/epos-print_xml_um_en_revi.pdf) API
+`epos-rs` is a rust driver for Epson receipt printers that implements the [EPOS Print](https://files.support.epson.com/pdf/pos/bulk/epos-print_xml_um_en_revi.pdf) API.
 
 ```rust
-use epos_rs::builder::{Body, new};
+use epos_rs::new;
+use epos_rs::universal::{Symbol, Text};
+use epos_rs::normal::Cut;
 use epos_rs::barcodes::SymbolType;
 use epos_rs::formatters::CutType;
-
-let barcode = Body::Symbol{ text: "This is a type 4 MaxiCode barcode".to_string(), 
-    symbol_type: SymbolType::MaxiCodeMode4, level: None, 
-    width: None, height: None, size: None, align: None, rotate: None };
-
-let feed = Body::Feed { unit: None, line: Some(5), linespc: None, pos: None };
-let cut = Body::Cut { cut_type: CutType::Feed };
-
-let handler = new("http://192.168.1.194", 10000, "local_printer").unwrap();
-handler.create(vec![barcode, feed, cut]).await.unwrap();
+ 
+// normal() returns a handler for "normal" mode, which prints commands in-order.
+// page() will return a handler for page mode, which prints a page in a specified print area.
+let mut handler = new(10000, "local_printer", "http://192.168.1.194").unwrap().normal();
+ 
+// Add a 2D MaxiCode barcode.
+handler.add(Symbol{text: "This is a type 4 MaxiCode barcode".to_string(), 
+    symbol_type: SymbolType::MaxiCodeMode4,  ..Default::default()}).unwrap();
+// Add some text
+handler.add(Text{text: String::from("This is some text\n\n"), ..Default::default()}).unwrap();
+// feed and cut
+handler.add(Cut{cut_type: CutType::Feed}).unwrap();
+// Send to printer
+handler.print().await.unwrap();
 
 ```
 
-`epos-rs` is currently not feature-complete with the ePOS API, although it supports basic features such as:
+## Features
 
-- All text and text formatting options
-- All 1D and 2D barcodes and & Barcode options
-- Images
-- Feeding and cutting
+`epos-rs` is currently not feature-complete with the ePOS API. Currently missing features:
+
+- `vline-begin` for normal mode
+- `vline-end` for normal mode
+- Exported `status` API commands
+- `pulse` for normal mode
+- `sound` for normal mode
+- `command` XML element
+- `layout` XML element
+- `recovery` XML element
+- `reset` XML element

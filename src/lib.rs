@@ -1,23 +1,34 @@
-//! epos-rs implements the ePOS API for creating and sending receipts to newer Epson printers
+//! epos-rs implements the ePOS API for creating and sending receipts to newer Epson printers that support the ePOS network API.
+//! 
 //! Complete documentation for the ePOS API can be found here: <https://files.support.epson.com/pdf/pos/bulk/epos-print_xml_um_en_revi.pdf>.
 //! 
-//! epos-rs handles all API details, providing an object-based API for creating receipt objects, and a `create` for handling the underlying XML and network request.
+//! epos-rs handles all API details, providing an object-based interface for creating receipt objects, and a `print` method for handling the underlying XML and network request.
 //! ```rust
-//! use epos_rs::builder::{Body, new};
+//! # tokio_test::block_on(async {
+//! use epos_rs::new;
+//! use epos_rs::universal::{Symbol, Text};
+//! use epos_rs::normal::Cut;
 //! use epos_rs::barcodes::SymbolType;
 //! use epos_rs::formatters::CutType;
-//!  # tokio_test::block_on(async {
-//! let barcode = Body::Symbol{ text: "This is a type 4 MaxiCode barcode".to_string(), 
-//!     symbol_type: SymbolType::MaxiCodeMode4, level: None, 
-//!     width: None, height: None, size: None, align: None, rotate: None };
-//!
-//! let feed = Body::Feed { unit: None, line: Some(5), linespc: None, pos: None };
-//! let cut = Body::Cut { cut_type: CutType::Feed };
 //! 
-//! let handler = new("http://192.168.1.194", 10000, "local_printer").unwrap();
-//! handler.create(vec![barcode, feed, cut]).await.unwrap();
+//! // normal() returns a handler for "normal" mode, which prints commands in-order.
+//! // page() will return a handler for page mode, which prints a page in a specified print area.
+//! let mut handler = new(10000, "local_printer", "http://192.168.1.194").unwrap().normal();
+//! 
+//! // Add a 2D MaxiCode barcode.
+//! handler.add(Symbol{text: "This is a type 4 MaxiCode barcode".to_string(), 
+//!     symbol_type: SymbolType::MaxiCodeMode4,  ..Default::default()}).unwrap();
+//! // Add some text
+//! handler.add(Text{text: String::from("This is some text\n\n"), ..Default::default()}).unwrap();
+//! // feed and cut
+//! handler.add(Cut{cut_type: CutType::Feed}).unwrap();
+//! handler.print().await.unwrap();
+//! 
+
 //! # })
 //! ```
+
+use std::fmt::Display;
 
 use error::EPOSError;
 use normal::NormalItem;
@@ -30,7 +41,6 @@ use url::Url;
 
 mod soap;
 
-//pub mod printer;
 pub mod barcodes;
 pub mod formatters;
 pub mod error;
@@ -40,14 +50,16 @@ pub mod normal;
 pub mod universal;
 
 /// Builder manages the connection to the printer.
+#[derive(Clone, Debug)]
 pub struct Builder {
     endpoint: Url,
     dev_id: String,
     timeout: i32,
-
 }
 
 /// Create a new printer connection. To use this connection to print, call either `builder.page()` or `builder.normal()`.
+/// On most printers, the default device ID is `"local_printer"`.
+/// The `timeout` is not a network timeout, but serves as a device-side parser timeout. On most systems, a reasonable timeout is ~10000.
 pub fn new<U: IntoUrl>(timeout: i32, dev_id: &str, endpoint: U) -> Result<Builder, EPOSError> {
     Ok( Builder{
         timeout: timeout,
@@ -80,11 +92,18 @@ impl Builder {
 }
 
 /// manage and track a print job in page mode.
+ #[derive(Clone, Debug)]
 pub struct PageBuilder {
     build: Vec<String>,
     timeout: i32,
     dev_id: String,
     endpoint: Url
+}
+
+impl Display for PageBuilder {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.build)
+    }
 }
 
 impl PageBuilder {
@@ -111,6 +130,12 @@ pub struct NormalBuilder {
     timeout: i32,
     dev_id: String,
     endpoint: Url
+}
+
+impl Display for NormalBuilder {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.build)
+    }
 }
 
 impl NormalBuilder {

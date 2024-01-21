@@ -1,3 +1,4 @@
+//! Types that are exclusive to normal mode.
 use serde::{Deserialize, Serialize};
 
 use crate::formatters::{CutType, Style};

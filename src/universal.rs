@@ -1,3 +1,4 @@
+//! Types that are available in normal mode and page mode.
 use serde::{Deserialize, Serialize};
 
 use crate::{formatters::{Font, Lang, Align, FeedPos}, page::PageItem, barcodes::{BarcodeType, HRI, SymbolType, ErrorCorrectionLevel}, normal::NormalItem};
