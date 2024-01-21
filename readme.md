@@ -1,6 +1,6 @@
 # epos-rs
 
-`epos-rs` is a rust driver for Epson receipt printers that implement the [EPOS Print](https://files.support.epson.com/pdf/pos/bulk/tm-i_epos-print_um_en_revk.pdf) API
+`epos-rs` is a rust driver for Epson receipt printers that implement the [EPOS Print](https://files.support.epson.com/pdf/pos/bulk/epos-print_xml_um_en_revi.pdf) API
 
 ```rust
 use epos_rs::builder::{Body, new};

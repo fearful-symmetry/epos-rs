@@ -1,5 +1,6 @@
 //! Error types.
 use thiserror::Error;
+use url;
 
 use crate::status::Response;
 
@@ -12,5 +13,7 @@ pub enum EPOSError {
     #[error("invalid header")]
     InvalidHeaderError(#[from] reqwest::header::InvalidHeaderValue),
     #[error("error sending document: {status}")]
-    ResponseError{status: Response}
+    ResponseError{status: Response},
+    #[error("error parsing URL")]
+    ParseError(#[from] url::ParseError)
 }

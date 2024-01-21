@@ -1,16 +1,146 @@
 //! The Main type for creating a complete receipt object.
-use reqwest::{header::HeaderMap, IntoUrl};
-use anyhow::Result;
-use serde::{Deserialize, Serialize};
-use url::Url;
 
-use crate::{Builder, barcodes::{BarcodeType, HRI, SymbolType, ErrorCorrectionLevel}, 
-formatters::{CutType, Font, FeedPos, Align, Lang}, 
-soap::{SoapWrapper, EposPrint, EposBody, SoapRespWrapper}, error::{EPOSError, self}};
+use serde::{Deserialize, Serialize};
+
+
+use crate::{ barcodes::{BarcodeType, HRI, SymbolType, ErrorCorrectionLevel}, 
+formatters::{CutType, Font, FeedPos, Align, Lang, Style, PrintDirection}};
+
+#[derive(Deserialize, Serialize, Debug)]
+pub enum PageItem {
+    /// Produces a text line.
+    /// Warning: If you're just printing a text value, the printer may fail to print unless you include a \n newline.
+    #[serde(rename = "text")]
+    TextOpts{
+        #[serde(rename = "$text")]
+        /// The text to print.
+        text: String,
+        #[serde(rename = "@font", skip_serializing_if = "Option::is_none")]
+        /// Set the font.
+        font: Option<Font>,
+        #[serde(rename = "@smoothing", skip_serializing_if = "Option::is_none")]
+        /// Set text smoothing.
+        smoothing: Option<bool>,
+        #[serde(rename = "@dw", skip_serializing_if = "Option::is_none")]
+        /// Double Width. when specified with the `width` attr, the `width` will take precedence.
+        double_width: Option<bool>,
+        #[serde(rename = "@dh", skip_serializing_if = "Option::is_none")]
+        /// Double Height. When specified with the `height` attr, the `height` will take precedence
+        double_height: Option<bool>,
+        #[serde(rename = "@width", skip_serializing_if = "Option::is_none")]
+        /// Set text width. Must be a value between 1-8
+        width: Option<u8>,
+        #[serde(rename = "@height", skip_serializing_if = "Option::is_none")]
+        /// Text Height. Must be a value between 1-8
+        height: Option<u8>,
+        #[serde(rename = "@ul", skip_serializing_if = "Option::is_none")]
+        /// Set underline.
+        underline: Option<bool>,
+        #[serde(rename = "@em", skip_serializing_if = "Option::is_none")]
+        /// Set emphasize.
+        emph: Option<bool>,
+        #[serde(rename = "@color", skip_serializing_if = "Option::is_none")]
+        /// Set text color
+        color: Option<bool>,
+        #[serde(rename = "@lang", skip_serializing_if = "Option::is_none")]
+        lang: Option<Lang>,
+        #[serde(rename = "@align", skip_serializing_if = "Option::is_none")]
+        align: Option<Align>
+    },
+    #[serde(rename = "text")]
+    /// Convenience type, will produce the same output as `TextOps` without the clutter.
+    /// Warning: If you're just printing a text value, the printer may fail to print unless you include a \n newline.
+    Text {
+        #[serde(rename = "$text")]
+        text: String,
+    },
+    #[serde(rename ="feed")]
+    /// Feed paper. At least one of the options for setting the length to feed must be set.
+    /// POS cannot be specified in page mode.
+    Feed {
+        #[serde(rename = "@unit", skip_serializing_if = "Option::is_none")]
+        /// Paper feed amount in dots
+        unit: Option<u8>,
+        #[serde(rename = "@line", skip_serializing_if = "Option::is_none")]
+        /// Paper feed amount in lines
+        line: Option<u8>,
+        #[serde(rename = "@linespc", skip_serializing_if = "Option::is_none")]
+        /// Per-line paper feed amount in dots
+        linespc: Option<u8>,
+        #[serde(rename = "@pos", skip_serializing_if = "Option::is_none")]
+        /// Paper feed position of label paper/black mark paper 
+        pos: Option<FeedPos>,
+    },
+    #[serde(rename ="area")]
+    Area {
+        /// Start point for the print area
+        #[serde(rename = "@x")]
+        x: u16,
+        /// End point for the print area
+        #[serde(rename = "@y")]
+        y: u16,
+        /// Total Print area width
+        #[serde(rename = "@width")]
+        width: u16,
+        /// Total print area height
+        #[serde(rename = "@height")]
+        height: u16,
+    },
+    #[serde(rename="line")]
+    Line {
+        /// Specifies the horizontal draw start position in units of dots.
+        #[serde(rename = "@x1")]
+        x1: u16,
+        /// Specifies the vertical draw start position in units of dots.
+        #[serde(rename = "@y1")]
+        y1: u16,
+        /// Specifies the horizontal draw end position in units of dots.
+        #[serde(rename = "@x2")]
+        x2:u16,
+        /// Specifies the vertical draw end position in units of dots.
+        #[serde(rename = "@y1")]
+        y2: u16,
+        #[serde(rename = "@style", skip_serializing_if = "Option::is_none")]
+        style: Option<Style>
+    },
+    #[serde(rename ="rectangle")]
+    Rectangle {
+        /// Specifies the horizontal draw start position in units of dots.
+        #[serde(rename = "@x1")]
+        x1: u16,
+        /// Specifies the vertical draw start position in units of dots.
+        #[serde(rename = "@y1")]
+        y1: u16,
+        /// Specifies the horizontal draw end position in units of dots.
+        #[serde(rename = "@x2")]
+        x2:u16,
+        /// Specifies the vertical draw end position in units of dots.
+        #[serde(rename = "@y2")]
+        y2: u16,
+        #[serde(rename = "@style", skip_serializing_if = "Option::is_none")]
+        style: Option<Style>
+    },
+    #[serde(rename ="direction")]
+    Direction {
+        #[serde(rename = "@dir")]
+        /// Specify the print direction
+        dir: PrintDirection
+    },
+    /// Specify the print position based on a starting point
+    #[serde(rename ="position")]
+    Position {
+        /// Start point for the print position
+        #[serde(rename = "@x")]
+        x: u16,
+        /// End point for the print position
+        #[serde(rename = "@y")] 
+        y: u16,
+    }
+}
 
 /// Body represents a single "item" in a ePOS receipt. A vector of `Body` objects represents a final receipt object.
-#[derive(Deserialize, Serialize, Debug)]
-pub enum Body {
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub enum NormalItem {
     #[serde(rename = "text")]
     /// Convenience type, will produce the same output as `TextOps` without the clutter.
     /// Warning: If you're just printing a text value, the printer may fail to print unless you include a \n newline.
@@ -56,7 +186,6 @@ pub enum Body {
         lang: Option<Lang>,
         #[serde(rename = "@align", skip_serializing_if = "Option::is_none")]
         align: Option<Align>
-
     },
     #[serde(rename = "cut")]
     /// Cut the paper.
@@ -66,6 +195,7 @@ pub enum Body {
     },
     #[serde(rename ="feed")]
     /// Feed paper. At least one of the options for setting the length to feed must be set.
+    /// Keep in mind that in page mode
     Feed {
         #[serde(rename = "@unit", skip_serializing_if = "Option::is_none")]
         /// Paper feed amount in dots
@@ -154,51 +284,6 @@ pub enum Body {
         #[serde(rename = "@rotate", skip_serializing_if = "Option::is_none")]
         /// rotate the label
         rotate: Option<bool>
-    }
-}
-
-
-/// Create a new ePOS-print handler
-/// On most platforms, `device_id` will be `local_printer`
-/// The `timeout` value is not an network timeout, but a timeout for the printer's internal parser logic.
-pub fn new<U: IntoUrl, S: Into<String>>(url: U, timeout: i32, device_id: S) -> Result<Builder>{
-    let endpoint: Url = url.into_url()?.join("/cgi-bin/epos/service.cgi")?;
-    Ok(Builder { endpoint: endpoint, dev_id: device_id.into(), timeout: timeout })
+    },
 
 }
-
-
-impl Builder{
-    /// Create an ePOS receipt
-    pub async fn create(&self, body: Vec<Body>) -> Result<(), EPOSError> {
-
-        let full_request = SoapWrapper{
-            ns: String::from("http://schemas.xmlsoap.org/soap/envelope/"),
-            body: Some( EposPrint{
-                ns: String::from("http://www.epson-pos.com/schemas/2011/03/epos-print"), 
-                body: EposBody{list: body}
-            }),
-        };
-
-        let output = quick_xml::se::to_string(&full_request)?;
-        println!("Got: {}", output);
-
-        let client = reqwest::Client::new();
-        let params = [("devid", &self.dev_id), ("timeout", &self.timeout.to_string())];
-        let mut headers = HeaderMap::new();
-        headers.insert(reqwest::header::CONTENT_TYPE,  "text/xml; charset=utf-8".parse()?);
-        headers.insert(reqwest::header::IF_MODIFIED_SINCE, "Thu, 01 Jan 1970 00:00:00 GMT".parse()?);
-        let builder = client.post(self.endpoint.clone()).query(&params).headers(headers).body(output);
-
-        let resp = builder.send().await?.text().await?;
-        let formatted_resp: SoapRespWrapper = quick_xml::de::from_str(&resp)?;
-        if !formatted_resp.body.response.success {
-            return Err(error::EPOSError::ResponseError { status: formatted_resp.body.response })
-        }
-
-        Ok(())
-    }
-
-}
-
-

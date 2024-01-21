@@ -2,12 +2,13 @@
 use serde::{Deserialize, Serialize};
 
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone, Default)]
 /// types of available 1D barcodes.
 /// Docs here are taken from the full XML spec: <https://files.support.epson.com/pdf/pos/bulk/epos-print_xml_um_en_revi.pdf>
 /// Binary data can also be specified with \xnn and \\ to print a backslash
 pub enum BarcodeType {
     #[serde(rename = "upc_a")]
+    #[default]
     /// When an 11-digit number is specified, a check digit is automatically added. When a 12-digit number is specified, the 12th digit is processed as a check digit but the check digit is not validated.
     UpcA,
     #[serde(rename = "upc_e")]
@@ -84,11 +85,12 @@ pub enum BarcodeType {
     Gs1DatabarExpanded
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone, Default)]
 /// types of available 2D barcodes.
 /// Docs here are taken from the full XML spec: <https://files.support.epson.com/pdf/pos/bulk/epos-print_xml_um_en_revi.pdf>
 pub enum SymbolType {
     #[serde(rename = "pdf417_standard")]
+    #[default]
     /// The data area can contain up to 928 code words in a maximum of 90 rows, each of which can contain up to 30 code words.
     PDF417,
     #[serde(rename = "pdf417_truncated")]
@@ -154,7 +156,7 @@ pub enum SymbolType {
     DatamatrixRectangle16,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 /// Specifies the HRI position for a barcode
 pub enum HRI {
     #[serde(rename = "none")]
@@ -167,7 +169,7 @@ pub enum HRI {
     Both
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 /// Error correction levels
 /// variants level_{0-8} are used by PDF417,
 /// while level_{l-h} are used by QRCode.
