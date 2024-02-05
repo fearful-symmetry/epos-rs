@@ -30,3 +30,25 @@ pub struct Hline {
 }
 
 impl NormalItem for Hline {}
+
+
+#[cfg(test)]
+mod tests{
+    use crate::formatters::Style;
+
+    use super::{Cut, Hline};
+ 
+    #[test]
+    fn test_hline() {
+        let test = Hline{x1: 1, x2: 2, style: Some(Style::Medium)};
+        let out = quick_xml::se::to_string(&test).unwrap();
+        assert_eq!(out, String::from(r#"<hline x1="1" x2="2" style="medium"/>"#));
+    }
+
+    #[test]
+    fn test_cut() {
+        let est = Cut{cut_type: crate::formatters::CutType::Feed};
+        let out = quick_xml::se::to_string(&est).unwrap();
+        assert_eq!(out, String::from(r#"<cut type="feed"/>"#));
+    }
+}

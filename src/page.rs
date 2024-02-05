@@ -1,10 +1,7 @@
 //! Types that are exclusive to page mode.
-use quick_xml::DeError;
-use reqwest::IntoUrl;
 use serde::{Deserialize, Serialize};
-use url::Url;
 
-use crate::{formatters::Style, error::EPOSError, soap::{EnumBody, PageWrapper, self, ENDPOINT}};
+use crate::formatters::Style;
 
 pub trait PageItem: Serialize {}
 
@@ -50,36 +47,21 @@ pub struct Rectangle {
 
 impl PageItem for Rectangle{}
 
+#[cfg(test)]
+mod tests {
+    use super::{Area, Rectangle};
 
-pub struct PageBuilder {
-    build: Vec<String>,
-    timeout: i32,
-    dev_id: String,
-    endpoint: Url
-}
-
-pub fn new<U: IntoUrl>(timeout: i32, dev_id: String, endpoint: U) -> Result<PageBuilder, EPOSError> {
-   Ok( PageBuilder{
-        build: Vec::new(),
-        timeout: timeout,
-        dev_id: dev_id,
-        endpoint: endpoint.into_url()?.join(ENDPOINT)?
-    })
-}
-
-impl PageBuilder {
-
-    pub fn add <I: PageItem> (&mut self, item: I) -> Result<(), DeError> {
-        let output = quick_xml::se::to_string(&item)?;
-        self.build.push(output);
-        Ok(())
+    #[test]
+    fn test_rectangle() {
+        let test = Rectangle{x1: 0, y1: 1, x2: 2, y2: 3, style: Some(crate::formatters::Style::Medium)};
+        let out = quick_xml::se::to_string(&test).unwrap();   
+        assert_eq!(out, String::from(r#"<rectangle x1="0" y1="1" x2="2" y2="3" style="medium"/>"#));
     }
 
-    pub async fn print(&mut self) -> Result<(), EPOSError> {
-
-        let final_body = EnumBody::Page { body: PageWrapper{body: self.build.join("\n")}}; 
-        soap::send(final_body, &self.dev_id, self.timeout, &self.endpoint).await?;
-
-        Ok(())
+    #[test]
+    fn test_area() {
+        let test = Area{x: 100, y: 100, width: 200, height: 400};
+        let out = quick_xml::se::to_string(&test).unwrap();
+        assert_eq!(out, String::from(r#"<area x="100" y="100" width="200" height="400"/>"#));
     }
 }

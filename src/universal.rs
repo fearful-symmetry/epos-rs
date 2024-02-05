@@ -157,3 +157,30 @@ pub struct Image {
 
 impl PageItem for Image {}
 impl NormalItem for Image {}
+
+
+#[cfg(test)]
+mod tests {
+    use crate::formatters::Font;
+
+    use super::Text;
+
+    #[test]
+    fn test_text() {
+        let test = Text{text: String::from("test"), 
+            font: Some(Font::FontA), 
+            smoothing: Some(true),
+            double_width: Some(true),
+            double_height: Some(true),
+            width: Some(20),
+            height: Some(20),
+            underline: Some(true),
+            emph: Some(true),
+            color: Some(true),
+            lang: Some(crate::formatters::Lang::En),
+            align: Some(crate::formatters::Align::Center)
+        };
+        let out = quick_xml::se::to_string(&test).unwrap();
+        assert_eq!(out, String::from(r#"<text font="font_a" smoothing="true" dw="true" dh="true" width="20" height="20" ul="true" em="true" color="true" lang="en" align="center">test</text>"#))
+    }
+}

@@ -5,15 +5,15 @@
 //! epos-rs handles all API details, providing an object-based interface for creating receipt objects, and a `print` method for handling the underlying XML and network request.
 //! ```rust
 //! # tokio_test::block_on(async {
-//! use epos_rs::new;
 //! use epos_rs::universal::{Symbol, Text};
 //! use epos_rs::normal::Cut;
+//! use epos_rs::Builder;
 //! use epos_rs::barcodes::SymbolType;
 //! use epos_rs::formatters::CutType;
 //! 
 //! // normal() returns a handler for "normal" mode, which prints commands in-order.
 //! // page() will return a handler for page mode, which prints a page in a specified print area.
-//! let mut handler = new(10000, "local_printer", "http://192.168.1.194").unwrap().normal();
+//! let mut handler = Builder::new(10000, "local_printer", "http://192.168.1.194").unwrap().normal();
 //! 
 //! // Add a 2D MaxiCode barcode.
 //! handler.add(Symbol{text: "This is a type 4 MaxiCode barcode".to_string(), 
@@ -57,19 +57,22 @@ pub struct Builder {
     timeout: i32,
 }
 
-/// Create a new printer connection. To use this connection to print, call either `builder.page()` or `builder.normal()`.
-/// On most printers, the default device ID is `"local_printer"`.
-/// The `timeout` is not a network timeout, but serves as a device-side parser timeout. On most systems, a reasonable timeout is ~10000.
-pub fn new<U: IntoUrl>(timeout: i32, dev_id: &str, endpoint: U) -> Result<Builder, EPOSError> {
-    Ok( Builder{
-        timeout: timeout,
-        dev_id: dev_id.to_string(),
-        endpoint: endpoint.into_url()?.join(ENDPOINT)?
-    })
-}
+
 
 
 impl Builder {
+
+    /// Create a new printer connection. To use this connection to print, call either `builder.page()` or `builder.normal()`.
+    /// On most printers, the default device ID is `"local_printer"`.
+    /// The `timeout` is not a network timeout, but serves as a device-side parser timeout. On most systems, a reasonable timeout is ~10000.
+    pub fn new<U: IntoUrl>(timeout: i32, dev_id: &str, endpoint: U) -> Result<Builder, EPOSError> {
+        Ok( Builder{
+            timeout: timeout,
+            dev_id: dev_id.to_string(),
+            endpoint: endpoint.into_url()?.join(ENDPOINT)?
+        })
+    }
+
     /// create a new builder object for writing in page mode (a formatted area of a set size).
     pub fn page(&self) -> PageBuilder {
         PageBuilder{
@@ -140,7 +143,7 @@ impl Display for NormalBuilder {
 
 impl NormalBuilder {
     /// Add a command
-    pub fn add <I: NormalItem> (&mut self, item: I) -> Result<(), DeError> {
+    pub fn  add <I: NormalItem> (&mut self, item: I) -> Result<(), DeError> {
         let output = quick_xml::se::to_string(&item)?;
         self.build.push(output);
         Ok(())
@@ -158,12 +161,12 @@ impl NormalBuilder {
 
 #[cfg(test)]
 mod tests {
-    use crate::{formatters::Align, page, new, universal::{Text, Symbol, Feed}, barcodes::SymbolType, normal::{Cut, Hline}};
+    use crate::{barcodes::SymbolType, formatters::Align, normal::{Cut, Hline}, page, universal::{Text, Symbol, Feed}, Builder};
 
     #[tokio::test]
     async fn test_normal() {
 
-        let mut handler = new(10000, "local_printer", "http://192.168.1.194").unwrap().normal();
+        let mut handler = Builder::new(10000, "local_printer", "http://192.168.1.194").unwrap().normal();
 
         handler.add(Text{text: String::from("I HATE XML\n\n"), double_height: Some(true), 
         double_width: Some(true), align: Some(Align::Center), ..Default::default()}).unwrap();
@@ -192,7 +195,7 @@ mod tests {
 
         let feed = Feed { unit: None, line: Some(200), linespc: None, pos: None };
 
-        let mut handler = new(10000, "local_printer",  "http://192.168.1.194").unwrap().page();
+        let mut handler = Builder::new(10000, "local_printer",  "http://192.168.1.194").unwrap().page();
         handler.add(area).unwrap();
         handler.add(ex1).unwrap();
         handler.add(rect).unwrap();
