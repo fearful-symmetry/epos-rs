@@ -53,7 +53,9 @@ pub enum EnumBody {
     Page {
         #[serde(rename = "page")]
         body: PageWrapper
-    }
+    },
+    #[serde(rename = "epos-print")]
+    Emtpy {}
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -62,7 +64,7 @@ pub struct PageWrapper {
     pub body: String
 }
 
-pub async fn send(body: EnumBody, devid: &str, timeout: i32, endpoint: &Url) -> Result<(), EPOSError> {
+pub async fn send_raw(body: EnumBody, devid: &str, timeout: i32, endpoint: &Url) -> Result<SoapRespWrapper, EPOSError> {
     let full_request = SoapWrapper{
         ns: String::from("http://schemas.xmlsoap.org/soap/envelope/"),
         body: Some( EposPrint{
@@ -86,6 +88,12 @@ pub async fn send(body: EnumBody, devid: &str, timeout: i32, endpoint: &Url) -> 
 
     let resp = builder.send().await?.text().await?;
     let formatted_resp: SoapRespWrapper = quick_xml::de::from_str(&resp)?;
+
+    Ok(formatted_resp)
+}
+
+pub async fn send(body: EnumBody, devid: &str, timeout: i32, endpoint: &Url) -> Result<(), EPOSError> {
+    let formatted_resp = send_raw(body, devid, timeout, endpoint).await?;
     debug!("Got raw response: {:?}", formatted_resp);
     if !formatted_resp.body.response.success {
         return Err(EPOSError::ResponseError { status: formatted_resp.body.response })

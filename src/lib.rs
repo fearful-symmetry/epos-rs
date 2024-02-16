@@ -35,7 +35,7 @@ use normal::NormalItem;
 use page::PageItem;
 use quick_xml::DeError;
 use reqwest::IntoUrl;
-use soap::{ENDPOINT, EnumBody, PageWrapper};
+use soap::{EnumBody, PageWrapper, ENDPOINT};
 use url::Url; 
 
 
@@ -58,10 +58,7 @@ pub struct Builder {
 }
 
 
-
-
 impl Builder {
-
     /// Create a new printer connection. To use this connection to print, call either `builder.page()` or `builder.normal()`.
     /// On most printers, the default device ID is `"local_printer"`.
     /// The `timeout` is not a network timeout, but serves as a device-side parser timeout. On most systems, a reasonable timeout is ~10000.
@@ -71,6 +68,14 @@ impl Builder {
             dev_id: dev_id.to_string(),
             endpoint: endpoint.into_url()?.join(ENDPOINT)?
         })
+    }
+
+    /// Return a status object from the printer
+    pub async fn status(&self) -> Result<status::Response, EPOSError>{
+        let final_body = EnumBody::Emtpy {  };
+        let resp = soap::send_raw(final_body, &self.dev_id, self.timeout, &self.endpoint).await?;
+
+        Ok(resp.body.response)
     }
 
     /// create a new builder object for writing in page mode (a formatted area of a set size).
@@ -162,6 +167,15 @@ impl NormalBuilder {
 #[cfg(test)]
 mod tests {
     use crate::{barcodes::SymbolType, formatters::Align, normal::{Cut, Hline}, page, universal::{Text, Symbol, Feed}, Builder};
+
+
+    #[tokio::test]
+    async fn test_status_soap() {
+        let handler = Builder::new(10000, "local_printer", "http://192.168.1.194").unwrap();
+        let resp = handler.status().await.unwrap();
+        println!("got: {}", resp);
+        println!("raw: {:?}", resp);
+    }
 
     #[tokio::test]
     async fn test_normal() {

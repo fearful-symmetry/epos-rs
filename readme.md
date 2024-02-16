@@ -31,7 +31,6 @@ handler.print().await.unwrap();
 
 - `vline-begin` for normal mode
 - `vline-end` for normal mode
-- Exported `status` API commands
 - `pulse` for normal mode
 - `sound` for normal mode
 - `command` XML element
